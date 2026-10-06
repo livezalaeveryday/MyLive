@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import engineio.async_drivers.threading
 import logging
-import secrets
 import socket
 import threading
 import time
@@ -12,21 +11,25 @@ from urllib.parse import quote
 import webbrowser
 
 from lca import create_app
+from lca.desktop_identity import load_desktop_identity, DesktopIdentityError
 
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 log = logging.getLogger("lca")
 
 
-def find_free_port(start: int = 5000, host: str = "127.0.0.1") -> int:
-    for port in range(start, 65536):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
-            try:
-                candidate.bind((host, port))
-                return port
-            except OSError:
-                continue
-    raise RuntimeError("No free TCP port is available")
+def require_available_port(port: int, host: str) -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
+        try:
+            candidate.bind((host, port))
+        except OSError as exc:
+            raise RuntimeError(f"MyLive port {port} is occupied or unavailable. Close the other app/instance or explicitly set LCA_PORT; the port was not changed.") from exc
+    return port
+
+
+def desktop_launch_url(token: str, session_id: str, port: int, bind_host: str = "0.0.0.0") -> str:
+    host = "127.0.0.1" if bind_host in {"0.0.0.0", "127.0.0.1", "localhost"} else bind_host
+    return f"http://{host}:{port}/#token={quote(token)}&session={quote(session_id)}"
 
 
 def lan_address() -> str:
@@ -44,10 +47,13 @@ def lan_address() -> str:
 
 
 def run() -> None:
-    app = create_app()
+    identity = load_desktop_identity()
+    app = create_app({"LOCAL_AUTH_TOKEN": identity["token"]})
     settings = app.extensions["lca.settings"]
     auth = app.extensions["lca.auth"]
     socketio = app.extensions["socketio"]
+    port = require_available_port(settings.port, settings.bind_host)
+    launch_url = desktop_launch_url(auth.token, identity["session"], port, settings.bind_host)
     # The sponsor/ad service is bundled into the same portable EXE and kept
     # on a fixed port so Cloudflare can route ads.finstall.click reliably.
     try:
@@ -62,11 +68,6 @@ def run() -> None:
         log.info("Sponsor ad server started on %s:8787", settings.bind_host)
     except OSError as exc:
         log.warning("Sponsor ad server unavailable on port 8787: %s", exc)
-    port = find_free_port(settings.port, settings.bind_host)
-    session_id = secrets.token_hex(16)
-    fragment = f"token={quote(auth.token)}&session={quote(session_id)}"
-    local_host = lan_address() if settings.bind_host == "0.0.0.0" else settings.bind_host
-    launch_url = f"http://{local_host}:{port}/#{fragment}"
 
     server_thread = threading.Thread(
         target=lambda: socketio.run(
@@ -81,7 +82,7 @@ def run() -> None:
     )
     server_thread.start()
     time.sleep(0.8)
-    log.info("Dashboard available on LAN: http://%s:%d/", local_host, port)
+    log.info("Dashboard available locally: http://127.0.0.1:%d/", port)
 
     try:
         import webview
@@ -107,4 +108,15 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except Exception as exc:
+        # Visible in the windowed EXE too. Never include credential-bearing URLs.
+        detail = str(exc) if isinstance(exc, DesktopIdentityError) or str(exc).startswith("MyLive port ") else "Check the desktop profile, bind host and port configuration."
+        message = "MyLive could not start. " + detail
+        if __import__('os').name == 'nt':
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, message, "MyLive startup error", 0x10)
+        else:
+            log.error("%s", message)
+        raise SystemExit(1)

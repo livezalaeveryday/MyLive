@@ -172,6 +172,25 @@ async function fetchJson(path, options) {
     return payload;
 }
 
+const testEventButtons = [document.getElementById('test-youtube-event'), document.getElementById('test-tiktok-gift')];
+const testEventStatus = document.getElementById('test-event-status');
+async function sendTestEvent(platform) {
+    testEventButtons.forEach(button => { button.disabled = true; button.setAttribute('aria-busy', 'true'); });
+    testEventStatus.textContent = 'Sending simulated ' + platform + ' event…';
+    try {
+        await fetchJson('/api/events/test', { method: 'POST', headers: authenticatedHeaders(), body: JSON.stringify({ platform }) });
+        testEventStatus.textContent = 'Simulated ' + platform + ' event sent. No live connection or payment.';
+        showToast(testEventStatus.textContent, 'success');
+    } catch (error) {
+        testEventStatus.textContent = 'Test event failed: ' + error.message;
+        showToast(testEventStatus.textContent, 'error');
+    } finally {
+        testEventButtons.forEach(button => { button.disabled = false; button.removeAttribute('aria-busy'); });
+    }
+}
+testEventButtons[0].addEventListener('click', () => sendTestEvent('youtube'));
+testEventButtons[1].addEventListener('click', () => sendTestEvent('tiktok'));
+
 function showToast(message, type) {
     const toast = document.createElement('div');
     const colors = type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400'

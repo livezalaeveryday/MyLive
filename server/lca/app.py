@@ -140,6 +140,29 @@ def create_app(
     app.add_url_rule("/api/streams/disconnect", "disconnect_stream", auth.required(disconnect_stream), methods=["POST"])
     app.add_url_rule("/disconnect", "legacy_disconnect_stream", auth.required(disconnect_stream), methods=["POST"])
 
+    @app.post("/api/events/test")
+    @auth.required
+    def test_event():
+        payload = _json_body()
+        platform = payload.get("platform")
+        if not isinstance(platform, str) or platform not in {"youtube", "tiktok"}:
+            raise ValidationError("platform must be youtube or tiktok")
+        if platform == "tiktok":
+            event = ChatEvent.create(
+                platform="tiktok", channel_id="test_creator", author="TEST TikTok",
+                comment="[TEST] Rose ×10 — simulated gift", event_type="gift",
+                gift_name="[TEST] Rose", gift_id="5655", gift_count=10,
+                gift_image_url="https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp",
+            )
+        else:
+            event = ChatEvent.create(
+                platform="youtube", channel_id="dQw4w9WgXcQ", author="TEST YouTube",
+                comment="[TEST] Simulated Super Chat — no payment", event_type="gift",
+                gift_name="[TEST] Super Chat (simulated)", gift_count=1, gift_value="THB 100 (fake)",
+            )
+        socketio.emit("chat_message", event.to_dict(), to=g.security_context.room)
+        return jsonify({"status": "success", "id": event.id, "message": "Simulated test event sent"})
+
     def highlight_message():
         payload = _json_body()
         action = str(payload.get("action", "")).strip().lower()

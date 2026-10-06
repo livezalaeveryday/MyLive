@@ -52,3 +52,12 @@ Ads server ใช้ HTML ภายในโมดูล ไม่ได้ใ�
 ไม่รวม `client/`, `WEB COMPANY/`, deployment/runbook หรือรายงานเก่า, credentials, ads_data, logs, caches และ EXE ไม่พบ Firebase imports ใน runtime ที่นำมา จึงตัด firebase-admin; requests ไม่ใช่ direct dependency ของ runtime นี้
 
 Repository นี้เก็บ source บน `main` โดยรักษาประวัติ initial commit เดิม ยังไม่ได้เลือก license ดูขั้นตอนพัฒนาต่อใน [คู่มือ GitHub](docs/GITHUB.md) URLs ของ ads/CDN เดิมยังอยู่เพื่อรักษาพฤติกรรม Optional control plane ไม่มี deployment package ในชุดนี้
+
+
+### Desktop session and test events
+
+The Windows desktop entry point keeps a strong token and session in `%LOCALAPPDATA%/MyLive/desktop-identity.json` (or `MyLive` beneath an explicitly configured `LCA_DATA_DIR`). The profile is written atomically in a private user/System ACL directory. It contains only application credentials, not media or personal data. Keep this directory outside the checkout and EXE extraction folder. Corrupt profiles fail with a recovery message and are never silently rotated. `LCA_LOCAL_AUTH_TOKEN` explicitly overrides the saved token without replacing it; keep the same override across restarts for stable links. App-factory/server integration behavior is unchanged.
+
+With the default LAN wildcard bind, the desktop opens `127.0.0.1` on the configured `LCA_PORT` (default 5000); it never silently picks another port. An occupied port requires closing the conflicting instance or explicitly changing `LCA_PORT`. Binding remains LAN-capable by default. If `LCA_BIND_HOST` explicitly names a LAN IP, the desktop uses that reachable host and links change when that configured IP changes. Local OBS links with the default bind remain stable after restarts; LAN links can still change when the machine LAN IP changes. Preserve the identity file to preserve credentials, and do not share credential-bearing overlay URLs publicly.
+
+Live Feed has **Test YouTube Event** and **Test TikTok Gift**. These send clearly labeled simulated samples through the authenticated local event API and the current session's Socket.IO room only; they do not start connectors, contact either platform, or create payments/gifts. The YouTube sample is a fake Super Chat; TikTok uses the supplied Rose CDN URL. Test controls keep normal highlighting and overlay rendering. `scripts/test_events_fixture.py` runs an actual local backend with platform connections disabled for QA.
