@@ -1,0 +1,9 @@
+flask==3.1.3
+Werkzeug==3.1.8
+flask-socketio==5.6.1
+flask-cors==6.0.5
+TikTokLive==7.0.0
+pytchat==0.5.5
+pywebview==6.2.1
+python-engineio==4.13.5
+python-socketio==5.16.4

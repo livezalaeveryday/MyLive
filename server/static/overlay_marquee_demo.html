@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Live — Chat Marquee Demo</title>
+  <style>
+    :root { --scale: 1; --speed: 14s; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #07070b; color: #fff; font-family: Inter, "Segoe UI", sans-serif; }
+    body { display: grid; place-items: center; padding: 32px; }
+    .stage { width: min(1080px, 100%); min-height: 420px; display: grid; place-items: end center; position: relative; overflow: hidden; border: 1px solid #27233a; border-radius: 24px; background: radial-gradient(circle at 50% 10%, #241a40 0, #0b0a12 45%, #07070b 100%); }
+    .hint { position: absolute; top: 28px; color: #766f8f; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
+    .marquee-window { width: 100%; overflow: hidden; padding: calc(18px * var(--scale)) 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+    .marquee-track { display: flex; width: max-content; gap: calc(18px * var(--scale)); animation: slide var(--speed) linear infinite; }
+    .comment { display: flex; align-items: center; gap: calc(12px * var(--scale)); min-width: max-content; padding: calc(12px * var(--scale)) calc(18px * var(--scale)); border: 1px solid rgba(167,139,250,.3); border-radius: calc(18px * var(--scale)); background: rgba(15,13,25,.92); box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: calc(18px * var(--scale)); }
+    .avatar { width: calc(38px * var(--scale)); height: calc(38px * var(--scale)); display: grid; place-items: center; border-radius: 50%; background: linear-gradient(135deg,#8b5cf6,#22d3ee); font-size: calc(17px * var(--scale)); font-weight: 800; }
+    .user { color: #c4b5fd; font-weight: 800; margin-right: 5px; }
+    .platform { color: #ff5656; font-size: .55em; font-weight: 900; letter-spacing: .12em; vertical-align: middle; }
+    .controls { position: absolute; top: 70px; display: flex; gap: 8px; align-items: center; padding: 8px; border: 1px solid #29243e; border-radius: 12px; background: rgba(8,8,13,.75); backdrop-filter: blur(12px); }
+    button { border: 1px solid #413563; border-radius: 8px; background: #171127; color: #d8ccff; padding: 7px 11px; cursor: pointer; }
+    button:hover { background: #2b1d4e; }
+    output { min-width: 48px; text-align: center; color: #9f8cff; font: 12px ui-monospace, monospace; }
+    @keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <div class="hint">Live chat · latest 10 comments</div>
+    <div class="controls">
+      <button id="slower">− Speed</button><output id="speed">14s</output><button id="faster">+ Speed</button>
+      <button id="smaller">− Size</button><output id="size">1.0x</output><button id="larger">+ Size</button>
+      <button id="reset">Reset</button>
+    </div>
+    <section class="marquee-window" aria-label="Live chat marquee">
+      <div class="marquee-track" id="track"></div>
+    </section>
+  </main>
+  <script>
+    const comments = [
+      ['D', '@DarkShadow-863', 'กลัวคับ 😂', 'YT'],
+      ['V', '@VANS-m3c', 'กรม อุตุ บอก ฝนไม่ตกแค่ค่ะ 🤣', 'YT'],
+      ['V', '@veevanami2253', 'วันนี้คือฟ้องร้องกรมอุตุได้มั้ยคะ', 'YT'],
+      ['Y', '@YyWe-dl1vs', 'อุตุบอกว่าไม่มีอะไร', 'YT'],
+      ['A', '@AlexanderTitan-hu6jg', 'ที่ลมฟ้าครึ้มทุกอย่าง', 'YT'],
+      ['P', '@patcharinlykkeskov3093', 'งานนี้รู้สึกไม่มา', 'YT'],
+      ['T', '@TcMobile-hk7ze', 'ฝนไม่ตก ก็บ่น ฝนตก ก็บ่น 5555 🤣', 'YT'],
+      ['P', '@porxd8590', 'ไหนใครรอคอมเมนต์เห็นแล้วแสงมันไหม', 'YT'],
+      ['M', '@MaiFanClub', 'ส่งหัวใจให้ไลฟ์นี้ ❤️', 'TT'],
+      ['S', '@SmileToday', 'สนุกมากครับทุกคน 🔥', 'TT']
+    ];
+    const track = document.getElementById('track');
+    const speed = document.getElementById('speed');
+    const size = document.getElementById('size');
+    let seconds = 14, scale = 1;
+    function render() {
+      const html = comments.concat(comments).map(([initial, user, text, platform]) =>
+        `<article class="comment"><span class="avatar">${initial}</span><span><span class="user">${user}</span><span class="platform">${platform}</span><br>${text}</span></article>`).join('');
+      track.innerHTML = html;
+      document.documentElement.style.setProperty('--speed', seconds + 's');
+      document.documentElement.style.setProperty('--scale', scale);
+      speed.textContent = seconds + 's'; size.textContent = scale.toFixed(1) + 'x';
+      track.style.animation = 'none'; void track.offsetWidth; track.style.animation = 'slide ' + seconds + 's linear infinite';
+    }
+    document.getElementById('slower').onclick = () => { seconds = Math.min(120, seconds + 2); render(); };
+    document.getElementById('faster').onclick = () => { seconds = Math.max(6, seconds - 2); render(); };
+    document.getElementById('smaller').onclick = () => { scale = Math.max(.5, Math.round((scale - .1) * 10) / 10); render(); };
+    document.getElementById('larger').onclick = () => { scale = Math.min(2, Math.round((scale + .1) * 10) / 10); render(); };
+    document.getElementById('reset').onclick = () => { seconds = 14; scale = 1; render(); };
+    render();
+  </script>
+</body>
+</html>
