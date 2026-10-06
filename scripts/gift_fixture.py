@@ -1,4 +1,4 @@
-"""Local, offline browser fixture; no platform connections or real credentials."""
+"""Local browser fixture with one remote CDN image; no platform connections or real credentials."""
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json
@@ -6,6 +6,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1] / 'server/static'
 events = [
+    {'id':'fixture-rose','platform':'tiktok','channelId':'fixture','author':'Rose Viewer','eventType':'gift','giftName':'Rose','giftCount':10,'giftImageUrl':'https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/eba3a9bb85c33e017f3648eaf88d7189~tplv-obj.webp','comment':'Rose'},
     {'id':'fixture-dove','platform':'tiktok','channelId':'fixture','author':'Dove Viewer','eventType':'gift','giftName':'White Dove','giftCount':3,'comment':'White Dove'},
     {'id':'fixture-unknown','platform':'tiktok','channelId':'fixture','author':'Unknown Viewer','eventType':'gift','giftName':'Unknown Gift','giftId':'5','giftCount':1,'comment':'Unknown Gift'},
     {'id':'fixture-yt','platform':'youtube','channelId':'dQw4w9WgXcQ','author':'YT Viewer','eventType':'comment','comment':'YouTube comment'},
@@ -28,5 +29,5 @@ class Handler(SimpleHTTPRequestHandler):
             super().do_GET()
 
 if __name__=='__main__':
-    print('Gift fixture http://127.0.0.1:8766 (offline mock)',flush=True)
+    print('Gift fixture http://127.0.0.1:8766 (mock events; remote CDN image)',flush=True)
     ThreadingHTTPServer(('127.0.0.1',8766),Handler).serve_forever()

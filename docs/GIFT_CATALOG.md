@@ -1,31 +1,9 @@
-# Local TikTok gift images
+# TikTok gift images
 
-`server/static/gifts/catalog.json` is user editable. 773 PNGs are imported from
-`Object/gifts_773.zip`; the ZIP is preserved. File numbers are inventory sequence
-numbers, **not TikTok gift IDs**. The source ZIP has no authoritative ID table.
+Gift images now come only from `giftImageUrl` on a TikTok gift event. The connector selects the first valid URL from `gift.image.url_list`, then `gift.icon.url_list`. Only HTTPS URLs whose host is `tiktokcdn.com` or a subdomain are accepted, with no credentials or explicit port and at most 2048 characters. Invalid URLs are discarded independently of the gift text.
 
-Each entry has `asset`, `names`, `verifiedIds`, and `sha256`. Names inferred from
-filename suffixes are only candidates; blank names stay unmapped. Add exact live
-gift names (including Thai aliases) to `names`. Unicode NFKC, case, whitespace
-normalization are supported; matching is exact and must identify one entry.
-Duplicates produce a generic gift icon. No fuzzy matching or translation occurs.
+Dashboard feed, chat overlay and highlight use the same renderer. Missing URL, rejected URL or image loading error displays 🎁 while keeping gift name, count, value and author. YouTube rendering is unchanged. The app does not download, save or cache gift media; the browser loads the CDN image directly, so internet/CDN availability is required and normal browser caching may apply. No combo/count semantics have changed.
 
-Put IDs confirmed against an actual TikTok gift event in `verifiedIds` as decimal
-strings, e.g. `"123456"`. Do not copy sequence numbers into this field. A unique
-verified ID takes precedence over names. Duplicate ID assignments fail closed.
-Unknown IDs may still use a unique exact name. YouTube gifts never use this TikTok
-catalog. Event-supplied `giftImage` URLs are ignored.
+`Object/gifts_773.zip`, all 773 PNGs and `server/static/gifts/catalog.json` are preserved as an inactive archive. Rendering never fetches this catalog and does not match local images by name or ID. The importer remains an archival utility; it is not invoked automatically. Historical reports remain unchanged.
 
-Edit the catalog beside the app's deployed static assets and reload browser/OBS
-sources. For a one-file EXE, bundled files are temporary runtime assets: edit the
-source catalog and rebuild for persistence. Missing catalog or broken images
-fall back to 🎁 while preserving author, gift name/count/value and highlighting.
-
-`python scripts/import_gifts.py` imports the archive once; it rejects traversal,
-duplicate/oversized files, invalid PNG signatures and overwrites. It refuses to
-replace an existing catalog so user mappings remain intact. This verifies PNG
-signatures, not a full image decode. No live gift receipt or combo behavior was
-changed; repeat counts are displayed as supplied by the existing connector.
-The installed TikTokLive event exposes `gift_id`; the adapter uses it first and
-falls back to `gift.id` when absent. Mapping accuracy still requires real LIVE
-validation. All 773 imported PNGs passed Pillow structural verification.
+Run `python -m unittest discover -s tests -p test_gift_image_url.py` and `node tests/test_gift_renderer.cjs`. `python scripts/gift_fixture.py` shows Rose with its event CDN URL and White Dove without an image even though its local archive asset exists. Fixture QA is not real LIVE/combo verification.

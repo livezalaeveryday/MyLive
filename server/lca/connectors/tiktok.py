@@ -8,10 +8,23 @@ import threading
 from typing import Any
 
 from .base import EventCallback, StatusCallback, ConnectorState
-from ..models import ChatEvent, ValidationError
+from ..models import ChatEvent, ValidationError, safe_gift_image_url
 
 
 log = logging.getLogger(__name__)
+
+
+def gift_image_url(gift: Any) -> str | None:
+    """Use the first valid image candidate, then icon, without network work."""
+    for field in ("image", "icon"):
+        candidates = getattr(getattr(gift, field, None), "url_list", None)
+        if not isinstance(candidates, (list, tuple)):
+            continue
+        for candidate in candidates:
+            valid = safe_gift_image_url(candidate)
+            if valid:
+                return valid
+    return None
 
 
 class TikTokConnector:
@@ -73,6 +86,7 @@ class TikTokConnector:
                             platform="tiktok", channel_id=self.channel_id, author=str(author),
                             avatar=None, comment=f"ส่ง {gift_name} x{count}",
                             event_type="gift", gift_name=str(gift_name), gift_count=count,
+                            gift_image_url=gift_image_url(gift),
                             gift_id=getattr(event, "gift_id", None) or getattr(gift, "id", None),
                         ))
                     except Exception:

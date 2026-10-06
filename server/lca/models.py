@@ -111,6 +111,24 @@ def safe_avatar_url(value: Any) -> str | None:
     return value
 
 
+def safe_gift_image_url(value: Any) -> str | None:
+    """Accept only event-supplied TikTok CDN HTTPS URLs; discard invalid images."""
+    if not isinstance(value, str) or not value or len(value) > 2048:
+        return None
+    if any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value) or "\\" in value:
+        return None
+    try:
+        parsed = urlparse(value)
+        host = (parsed.hostname or "").lower()
+        if (parsed.scheme.lower() != "https" or parsed.username is not None
+                or parsed.password is not None or ":" in parsed.netloc
+                or not (host == "tiktokcdn.com" or host.endswith(".tiktokcdn.com"))):
+            return None
+    except ValueError:
+        return None
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ChatEvent:
     id: str
@@ -126,6 +144,7 @@ class ChatEvent:
     gift_count: int | None = None
     gift_value: str | None = None
     gift_id: str | None = None
+    gift_image_url: str | None = None
 
     @classmethod
     def create(
@@ -143,6 +162,7 @@ class ChatEvent:
         gift_count: Any = None,
         gift_value: Any = None,
         gift_id: Any = None,
+        gift_image_url: Any = None,
     ) -> "ChatEvent":
         normalized_platform = normalize_platform(platform)
         normalized_channel = normalize_channel_id(normalized_platform, channel_id)
@@ -174,6 +194,7 @@ class ChatEvent:
             gift_name=str(gift_name).strip()[:200] if gift_name else None,
             gift_count=normalized_gift_count,
             gift_value=str(gift_value).strip()[:100] if gift_value else None,
+            gift_image_url=safe_gift_image_url(gift_image_url),
             gift_id=str(gift_id) if re.fullmatch(r'[1-9]\d{0,19}', str(gift_id)) else None,
         )
 
@@ -194,6 +215,7 @@ class ChatEvent:
             gift_count=payload.get("giftCount"),
             gift_value=payload.get("giftValue"),
             gift_id=payload.get("giftId"),
+            gift_image_url=payload.get("giftImageUrl"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -211,4 +233,5 @@ class ChatEvent:
             "giftCount": self.gift_count,
             "giftValue": self.gift_value,
             "giftId": self.gift_id,
+            "giftImageUrl": self.gift_image_url,
         }
