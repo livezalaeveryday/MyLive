@@ -73,6 +73,7 @@ class TikTokConnector:
                             platform="tiktok", channel_id=self.channel_id, author=str(author),
                             avatar=None, comment=f"ส่ง {gift_name} x{count}",
                             event_type="gift", gift_name=str(gift_name), gift_count=count,
+                            gift_id=getattr(event, "gift_id", None) or getattr(gift, "id", None),
                         ))
                     except Exception:
                         log.exception("TikTok gift handling failed")

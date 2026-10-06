@@ -125,6 +125,7 @@ class ChatEvent:
     gift_name: str | None = None
     gift_count: int | None = None
     gift_value: str | None = None
+    gift_id: str | None = None
 
     @classmethod
     def create(
@@ -141,6 +142,7 @@ class ChatEvent:
         gift_name: Any = None,
         gift_count: Any = None,
         gift_value: Any = None,
+        gift_id: Any = None,
     ) -> "ChatEvent":
         normalized_platform = normalize_platform(platform)
         normalized_channel = normalize_channel_id(normalized_platform, channel_id)
@@ -172,6 +174,7 @@ class ChatEvent:
             gift_name=str(gift_name).strip()[:200] if gift_name else None,
             gift_count=normalized_gift_count,
             gift_value=str(gift_value).strip()[:100] if gift_value else None,
+            gift_id=str(gift_id) if re.fullmatch(r'[1-9]\d{0,19}', str(gift_id)) else None,
         )
 
     @classmethod
@@ -190,6 +193,7 @@ class ChatEvent:
             gift_name=payload.get("giftName"),
             gift_count=payload.get("giftCount"),
             gift_value=payload.get("giftValue"),
+            gift_id=payload.get("giftId"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -206,4 +210,5 @@ class ChatEvent:
             "giftName": self.gift_name,
             "giftCount": self.gift_count,
             "giftValue": self.gift_value,
+            "giftId": self.gift_id,
         }

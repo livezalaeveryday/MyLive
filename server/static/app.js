@@ -304,7 +304,8 @@ socket.on('chat_message', (msg) => {
     meta.appendChild(makeElement('span', 'text-[10px] text-gray-500 truncate max-w-[100px] border border-white/5 px-1.5 py-0.5 rounded', msg.channelId));
     if (isGift) meta.appendChild(makeElement('span', 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-300 border border-yellow-400/20', '🎁 GIFT'));
     const commentRow = makeElement('div', 'flex items-start gap-2');
-    const giftText = isGift && msg.giftName ? '🎁 ' + msg.giftName + (msg.giftCount ? ' ×' + msg.giftCount : '') + (msg.giftValue ? ' · ' + msg.giftValue : '') : '';
+    const giftText = isGift ? GiftRenderer.text(msg) : '';
+    GiftRenderer.decorate(commentRow, msg);
     commentRow.appendChild(makeElement('p', 'flex-1 text-sm ' + (isGift ? 'text-yellow-100' : 'text-gray-300') + ' break-words break-all leading-relaxed', renderComment(giftText || msg.comment)));
     const speakButton = makeElement('button', 'shrink-0 mt-0.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-gray-400 hover:border-accent/40 hover:text-white', '🔊');
     speakButton.type = 'button';

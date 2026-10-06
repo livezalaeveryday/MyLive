@@ -133,6 +133,7 @@
         <div id="highlight-container" class="hidden"></div>
     </div>
 
+    <script src="gift-renderer.js"></script>
     <script>
         'use strict';
 
@@ -263,7 +264,8 @@
             meta.append(authorName, badge);
 
             // Message Comment
-            const comment = element('p', 'text-2xl md:text-3xl lg:text-4xl text-white font-bold leading-snug break-words text-glow', renderComment(msg.comment));
+            const comment = element('p', 'text-2xl md:text-3xl lg:text-4xl text-white font-bold leading-snug break-words text-glow', renderComment(GiftRenderer.text(msg)));
+            GiftRenderer.decorate(comment, msg);
 
             content.append(meta, comment);
             container.append(avatarWrap, content);
