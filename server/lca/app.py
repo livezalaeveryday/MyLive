@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -195,10 +196,13 @@ def create_app(
         payload = payload if isinstance(payload, dict) else {}
         overlay = str(payload.get("overlay", "")).strip().lower()
         try:
-            scale = round(float(payload.get("scale", 1)), 2)
+            scale = float(payload.get("scale", 1))
+            if not math.isfinite(scale):
+                return
+            scale = max(0.5, min(10, math.floor(scale * 10 + 0.5) / 10))
         except (TypeError, ValueError):
             return
-        if overlay not in {"chat", "highlight", "vertical"} or not 0.5 <= scale <= 3:
+        if overlay not in {"chat", "highlight", "vertical"} or not 0.5 <= scale <= 10:
             return
         try:
             context = auth.authenticate(payload.get("token"), payload.get("sessionId"))

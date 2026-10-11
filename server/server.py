@@ -87,13 +87,41 @@ def run() -> None:
     try:
         import webview
 
-        webview.create_window(
-            "Live Chat Aggregator",
+        if __import__('os').name == 'nt':
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('MyLive.Desktop')
+            except Exception:
+                pass
+        window = webview.create_window(
+            "MyLive",
             launch_url,
             width=1280,
             height=800,
             min_size=(900, 600),
         )
+        def apply_window_icon():
+            try:
+                import ctypes
+                from pathlib import Path
+                if __import__('os').name != 'nt':
+                    return
+                user32 = ctypes.windll.user32
+                user32.LoadImageW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+                user32.LoadImageW.restype = ctypes.c_void_p
+                user32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
+                user32.SendMessageW.restype = ctypes.c_ssize_t
+                handle = int(window.native.Handle.ToInt64())
+                icon_path = str(Path(__file__).resolve().parent / 'assets' / 'mylive-icon.ico')
+                apply_window_icon.handles = []
+                for kind, size in ((0, 32), (1, 64)):
+                    icon = user32.LoadImageW(None, icon_path, 1, size, size, 0x10)
+                    if icon:
+                        apply_window_icon.handles.append(icon)
+                        user32.SendMessageW(handle, 0x80, kind, icon)
+            except Exception:
+                pass
+        window.events.shown += apply_window_icon
         webview.start()
     except ImportError:
         webbrowser.open(launch_url)

@@ -1,137 +1,195 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Chat Aggregator - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: { yt: "#FF0000", tt: "#00F2FE", accent: "#8B5CF6", dark: "#0f0f11", darker: "#09090b", panel: "#18181b" },
-                    fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] }
-                }
-            }
-        }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        body { background-color: #09090b; color: #ececec; font-family: Inter, sans-serif; }
-        .chat-scroll { scrollbar-width: thin; scrollbar-color: #333 #09090b; }
-        .chat-scroll::-webkit-scrollbar { width: 6px; }
-        .chat-scroll::-webkit-scrollbar-track { background: #09090b; }
-        .chat-scroll::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
-        .platform-badge-yt { background: rgba(255,0,0,0.1); color: #ff4444; border: 1px solid rgba(255,0,0,0.2); }
-        .platform-badge-tt { background: rgba(0,242,254,0.1); color: #00F2FE; border: 1px solid rgba(0,242,254,0.2); }
-        .chat-item { transition: all 0.2s ease; animation: fadeIn 0.3s ease; }
-        #chat-container { --feed-scale: 1; }
-        .chat-item { font-size: calc(0.875rem * var(--feed-scale)); padding: calc(0.75rem * var(--feed-scale)); }
-        .chat-item img { width: calc(2.5rem * var(--feed-scale)); height: calc(2.5rem * var(--feed-scale)); }
-        #chat-container .chat-item .text-sm { font-size: calc(0.875rem * var(--feed-scale)) !important; }
-        #chat-container .chat-item .text-xs { font-size: calc(0.75rem * var(--feed-scale)) !important; }
-        #chat-container .chat-item p { font-size: calc(0.875rem * var(--feed-scale)) !important; line-height: 1.6; }
-        .chat-item:hover { background-color: rgba(255,255,255,0.03); cursor: pointer; }
-        .chat-item.highlighted { background-color: rgba(139,92,246,0.1); border-left: 3px solid #8B5CF6; }
-        .toolbar-link { white-space: nowrap; }
-        .sponsor-frame { width: 100%; height: clamp(112px, 15vw, 168px); display: block; }
-        .brand-title { letter-spacing: -0.025em; }
-        .status-bar { min-height: 22px; border-top: 1px solid rgba(255,255,255,.06); background: rgba(9,9,11,.92); }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-    </style>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyLive Dashboard</title>
+<link rel="stylesheet" href="dashboard.css">
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous">
+</script>
 </head>
-<body class="h-screen flex flex-col">
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
-    <header class="border-b border-white/10 bg-darker px-6 py-3 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
-                <svg style="width: 18px; height: 18px;" class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-            </div>
-            <div>
-                <h1 class="brand-title text-lg font-bold">My Live</h1>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Every Message Are Important</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2">
-            <span id="msg-counter" class="text-xs text-gray-500 font-mono mr-2">0 messages</span>
-            <span class="flex items-center gap-1 bg-dark border border-white/10 rounded px-1">
-                <button type="button" id="tts-test" class="px-2 py-1 text-[10px] text-gray-400 hover:text-white" title="ทดสอบเสียง">🔊 Test voice</button>
-                <button type="button" id="tts-stop" class="px-2 py-1 text-[10px] text-gray-500 hover:text-white" title="หยุดเสียง">Stop</button>
-            </span>
-            <span class="flex items-center gap-1">
-                <a id="chat-overlay-link" href="overlay.html" target="_blank" rel="noopener" class="toolbar-link text-xs px-3 py-1.5 bg-white/5 border border-white/10 rounded-md hover:bg-white/10 text-gray-300 transition-colors">Chat Overlay</a>
-                <span class="overlay-zoom bg-dark border border-white/10 rounded flex items-center"><button type="button" data-zoom="chat" data-step="-1" aria-label="ลดขนาด Chat Overlay" class="px-1.5 py-1 text-gray-400 hover:text-white">−</button><output id="chat-overlay-scale" class="w-9 text-center text-[10px] text-gray-400">1.0x</output><button type="button" data-zoom="chat" data-step="1" aria-label="เพิ่มขนาด Chat Overlay" class="px-1.5 py-1 text-gray-400 hover:text-white">+</button><button type="button" data-reset-zoom="chat" aria-label="คืนค่า Chat Overlay" class="px-1.5 py-1 text-[10px] text-gray-500 hover:text-white">Reset</button></span>
-            </span>
-            <span class="flex items-center gap-1">
-                <a id="highlight-overlay-link" href="overlay_highlight.html" target="_blank" rel="noopener" class="toolbar-link text-xs px-3 py-1.5 bg-accent/10 border border-accent/20 text-accent rounded-md hover:bg-accent hover:text-white transition-colors">Highlight 16:9</a>
-                <span class="overlay-zoom bg-dark border border-white/10 rounded flex items-center"><button type="button" data-zoom="highlight" data-step="-1" aria-label="ลดขนาด Highlight 16:9" class="px-1.5 py-1 text-gray-400 hover:text-white">−</button><output id="highlight-overlay-scale" class="w-9 text-center text-[10px] text-gray-400">1.0x</output><button type="button" data-zoom="highlight" data-step="1" aria-label="เพิ่มขนาด Highlight 16:9" class="px-1.5 py-1 text-gray-400 hover:text-white">+</button><button type="button" data-reset-zoom="highlight" aria-label="คืนค่า Highlight 16:9" class="px-1.5 py-1 text-[10px] text-gray-500 hover:text-white">Reset</button></span>
-            </span>
-            <span class="flex items-center gap-1">
-            <a id="highlight-vertical-link" href="overlay_highlight.html?size=xl&pos=top" target="_blank" rel="noopener" class="toolbar-link text-xs px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-pink-500/20 border border-cyan-500/30 text-cyan-300 rounded-md hover:brightness-125 transition-all font-semibold flex items-center gap-1.5">
-                <span>📱 Highlight 9:16 (TikTok)</span>
-            </a>
-            <span class="overlay-zoom bg-dark border border-white/10 rounded flex items-center"><button type="button" data-zoom="vertical" data-step="-1" aria-label="ลดขนาด Highlight 9:16" class="px-1.5 py-1 text-gray-400 hover:text-white">−</button><output id="highlight-vertical-scale" class="w-9 text-center text-[10px] text-gray-400">1.0x</output><button type="button" data-zoom="vertical" data-step="1" aria-label="เพิ่มขนาด Highlight 9:16" class="px-1.5 py-1 text-gray-400 hover:text-white">+</button><button type="button" data-reset-zoom="vertical" aria-label="คืนค่า Highlight 9:16" class="px-1.5 py-1 text-[10px] text-gray-500 hover:text-white">Reset</button></span>
-            </span>
-        </div>
-    </header>
-    <div class="flex-1 flex overflow-hidden">
-        <aside class="w-80 xl:w-96 border-r border-white/10 bg-panel p-4 xl:p-5 flex flex-col gap-4 overflow-y-auto chat-scroll shrink-0">
-            <div class="bg-darker p-4 rounded-xl border border-white/5 space-y-3">
-                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400">+ Add Stream</h2>
-                <div class="flex gap-2">
-                    <select id="platform-select" class="shrink-0 w-28 bg-dark border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-accent/50"><option value="youtube">YouTube</option><option value="tiktok">TikTok</option></select>
-                    <input type="text" id="channel-id" placeholder="ID or @user" aria-label="Video ID, URL, or username" class="flex-1 min-w-0 bg-dark border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-accent/50 placeholder:text-gray-600" onkeydown="if(event.key==='Enter') addStream()">
-                </div>
-                <button onclick="addStream()" class="w-full mt-2 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent py-2.5 rounded-lg text-sm font-semibold transition-all">Connect</button>
-            </div>
-            <div>
-                <h3 class="text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-3 px-1">Active Streams</h3>
-                <div id="active-streams-list" class="space-y-2">
-                    <div id="empty-streams" class="text-xs text-gray-600 px-1 italic py-4 text-center border border-dashed border-white/5 rounded-lg">No active streams</div>
-                </div>
-            </div>
-            <div class="mt-auto pt-2">
-                <div class="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-[#15121f] to-[#0b0b0f] p-3 shadow-lg shadow-violet-950/20">
-                    <div class="flex items-center justify-between mb-2 px-1">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_10px_#a78bfa]"></span>
-                            <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-200">สนับสนุนโปรเจกต์</span>
-                        </div>
-                        <span class="text-[9px] text-gray-600">SPONSOR</span>
-                    </div>
-                    <iframe title="Sponsor" src="https://ads.finstall.click/ad/livechat" class="sponsor-frame rounded-xl border border-white/10 bg-black/20" loading="lazy" referrerpolicy="no-referrer"></iframe>
-                </div>
-            </div>
-        </aside>
-        <main class="flex-1 flex flex-col bg-dark overflow-hidden">
-            <div class="shrink-0 px-6 py-3 border-b border-white/5 flex justify-between items-center bg-darker/80 backdrop-blur-sm">
-                <div>
-                    <h2 class="text-sm font-medium text-gray-300">Live Feed</h2>
-                    <span class="text-[10px] text-gray-500">Click a message to highlight on overlay</span>
-                </div>
-                <div class="flex gap-2 flex-wrap justify-end">
-                    <button type="button" id="test-youtube-event" class="text-xs px-3 py-1.5 bg-white/5 text-gray-300 border border-white/10 rounded-lg disabled:opacity-50" title="Simulated event; no YouTube connection or payment">Test YouTube Event</button>
-                    <button type="button" id="test-tiktok-gift" class="text-xs px-3 py-1.5 bg-white/5 text-gray-300 border border-white/10 rounded-lg disabled:opacity-50" title="Simulated gift; no TikTok connection">Test TikTok Gift</button>
-                    <span id="test-event-status" role="status" aria-live="polite" class="sr-only"></span>
-                    <button type="button" id="feed-filter-all" class="text-xs px-3 py-1.5 bg-accent/10 text-accent border border-accent/20 rounded-lg">All Events</button>
-                    <button type="button" id="feed-filter-gifts" class="text-xs px-3 py-1.5 bg-white/5 text-gray-400 border border-white/10 rounded-lg">🎁 Gifts Only</button>
-                    <span class="flex items-center gap-1 bg-dark border border-white/10 rounded"><button type="button" id="feed-zoom-out" class="px-2 py-1 text-xs text-gray-400 hover:text-white" aria-label="ลดขนาด Live Feed">−</button><output id="feed-zoom-value" class="w-8 text-center text-[10px] text-gray-400">1.0x</output><button type="button" id="feed-zoom-in" class="px-2 py-1 text-xs text-gray-400 hover:text-white" aria-label="เพิ่มขนาด Live Feed">+</button><button type="button" id="feed-zoom-reset" class="px-1.5 py-1 text-[10px] text-gray-500 hover:text-white" aria-label="คืนค่า Live Feed">Reset</button></span>
-                    <button onclick="clearHighlight()" class="text-xs px-3 py-1.5 bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-white rounded-lg transition-all">Clear Highlight</button>
-                    <button onclick="clearChat()" class="text-xs px-3 py-1.5 bg-white/5 text-gray-400 border border-white/10 hover:bg-red-500 hover:text-white rounded-lg transition-all">Clear Feed</button>
-                </div>
-            </div>
-            <div id="chat-container" class="flex-1 overflow-y-auto p-4 chat-scroll space-y-1.5">
-                <div class="text-center text-sm text-gray-600 mt-10">Connect a stream to start receiving chat</div>
-            </div>
-        </main>
-    </div>
-    <footer class="status-bar shrink-0 px-5 flex items-center justify-end text-[10px] text-gray-500 tracking-wide">
-        Created by <span class="ml-1 text-violet-300 font-medium">ไลฟ์สาระ ไปวันๆ</span>
-    </footer>
-    <script src="gift-renderer.js"></script>
-    <script src="app.js"></script>
+<body>
+<a class="skip-link" href="#workspace">Skip to workspace</a>
+<div id="toast-container" role="status" aria-live="polite">
+</div>
+<div class="shell">
+<nav class="navigation" aria-label="Main navigation">
+<strong>MyLive</strong>
+<button data-page="dashboard" aria-current="page">Dashboard</button>
+<button data-page="connections">Connections</button>
+<button data-page="events">Events</button>
+<button data-page="triggers">Triggers</button>
+<button data-page="overlay">Overlay</button>
+<button data-page="sound">Sound / TTS</button>
+<button data-page="obs">OBS</button>
+<button data-page="settings">Settings</button>
+<small>YouTube + TikTok<br>Local live workspace</small>
+</nav>
+<main class="workspace" id="workspace">
+<header class="page-heading">
+<div>
+<h1 id="page-title">Dashboard</h1>
+<p id="page-description">Your live streams, messages and overlays in one place.</p>
+</div>
+<span id="msg-counter">0 messages</span>
+</header>
+<section class="dashboard-status" data-views="connections" hidden>
+<article class="status-card youtube">
+<h2>YouTube</h2>
+<output id="youtube-status">Not connected</output>
+<p>Live video URL, video ID or channel handle</p>
+<button data-connect-platform="youtube">Connect YouTube</button>
+</article>
+<article class="status-card tiktok">
+<h2>TikTok</h2>
+<output id="tiktok-status">Not connected</output>
+<p>Connect using your LIVE username</p>
+<button data-connect-platform="tiktok">Connect TikTok</button>
+</article>
+</section>
+<section class="module" data-views="connections" hidden>
+<h2>Connect a stream</h2>
+<div class="connection-form">
+<select id="platform-select" aria-label="Platform">
+<option value="youtube">YouTube</option>
+<option value="tiktok">TikTok</option>
+</select>
+<input id="channel-id" aria-label="Video URL, ID or username" placeholder="Video URL, ID or @username">
+<button id="connect-stream">Connect</button>
+</div>
+<p>Start your live broadcast on the platform first. A request stays connecting until the platform confirms it.</p>
+<h2>Active streams</h2>
+<div id="active-streams-list">
+<div id="empty-streams">No active streams</div>
+</div>
+</section>
+<div class="dashboard-grid">
+<section class="module feed-panel" data-views="dashboard events">
+<h2>Live events</h2>
+<p>Click a message to show it on your highlight overlay.</p>
+<div class="feed-controls">
+<button type="button" id="test-youtube-event" title="Simulated event; no YouTube connection or payment">Test YouTube Event</button>
+<button type="button" id="test-tiktok-gift" title="Simulated gift; no TikTok connection">Test TikTok Gift</button>
+<span id="test-event-status" role="status" aria-live="polite" class="sr-only"></span>
+<button id="feed-filter-all" aria-pressed="true">All events</button>
+<button id="feed-filter-gifts" aria-pressed="false">Gifts only</button>
+<button id="feed-zoom-out" aria-label="Smaller feed text">−</button>
+<output id="feed-zoom-value">1.0x</output>
+<button id="feed-zoom-in" aria-label="Larger feed text">+</button>
+<button id="feed-zoom-reset">Reset size</button>
+<button id="clear-highlight">Clear highlight</button>
+<button id="clear-feed">Clear feed</button>
+</div>
+<div id="chat-container" class="chat-scroll">
+<p id="feed-empty">Connect a stream to start receiving messages.</p>
+<button data-page="connections">Go to connections</button>
+</div>
+</section>
+<aside class="right-column">
+<section class="module" data-views="dashboard triggers">
+<h2>Trigger rules</h2>
+<div class="system-row">
+<span>Click message → Highlight</span>
+<output>Manual</output>
+</div>
+<div class="system-row">
+<span>Speaker button → Read aloud</span>
+<output>Manual</output>
+</div>
+<p class="notice">Automatic gift / Super Chat rules are planned. This version has no automatic trigger engine.</p>
+<button disabled>Create automatic rule (coming later)</button>
+</section>
+<section class="module" data-views="dashboard overlay">
+<h2>Overlay preview</h2>
+<div class="preview-stage">
+<iframe id="overlay-preview" title="Live chat overlay preview" referrerpolicy="no-referrer">
+</iframe>
+</div>
+<p id="preview-state">Waiting for local session</p>
+<button data-page="overlay">Overlay controls</button>
+</section>
+<section class="module" data-views="dashboard settings">
+<h2>System status</h2>
+<div class="system-row">
+<span>Local server</span>
+<output id="server-status">Checking…</output>
+</div>
+<div class="system-row">
+<span>Event connection</span>
+<output id="socket-status">Connecting…</output>
+</div>
+<div class="system-row">
+<span>Local access</span>
+<output id="auth-status">Checking…</output>
+</div>
+<div class="system-row">
+<span>OBS</span>
+<output>Setup required</output>
+</div>
+<p>OBS connection status is not available in this version.</p>
+<button id="refresh-status">Refresh status</button>
+</section>
+</aside>
+</div>
+<section class="module" data-views="overlay obs" hidden>
+<h2>OBS browser sources</h2>
+<p>Open an overlay and copy its address into an OBS Browser Source. These addresses contain your local access token. Keep them private.</p>
+<div class="overlay-tools">
+<div class="overlay-profile">
+<a id="chat-overlay-link" target="_blank" rel="noopener noreferrer" href="overlay.html">Chat overlay</a>
+<button data-zoom="chat" data-step="-1" aria-label="Smaller chat overlay">−</button>
+<output id="chat-overlay-scale">1.0x</output>
+<button data-zoom="chat" data-step="1" aria-label="Larger chat overlay">+</button>
+<button data-reset-zoom="chat">Reset</button>
+</div>
+<div class="overlay-profile">
+<a id="highlight-overlay-link" target="_blank" rel="noopener noreferrer" href="overlay_highlight.html">Highlight 16:9</a>
+<button data-zoom="highlight" data-step="-1" aria-label="Smaller widescreen highlight">−</button>
+<output id="highlight-overlay-scale">1.0x</output>
+<button data-zoom="highlight" data-step="1" aria-label="Larger widescreen highlight">+</button>
+<button data-reset-zoom="highlight">Reset</button>
+</div>
+<div class="overlay-profile">
+<a id="highlight-vertical-link" target="_blank" rel="noopener noreferrer" href="overlay_highlight.html?size=xl&amp;pos=top">Highlight 9:16</a>
+<button data-zoom="vertical" data-step="-1" aria-label="Smaller vertical highlight">−</button>
+<output id="highlight-vertical-scale">1.0x</output>
+<button data-zoom="vertical" data-step="1" aria-label="Larger vertical highlight">+</button>
+<button data-reset-zoom="vertical">Reset</button>
+</div>
+</div>
+<ol>
+<li>Add a Browser Source in OBS.</li>
+<li>Use 1920 × 1080 for widescreen, or 1080 × 1920 for vertical.</li>
+<li>Paste the overlay address and keep this app running.</li>
+</ol>
+<p>OBS WebSocket control and automatic scene switching are not connected.</p>
+</section>
+<section class="module" data-views="sound" hidden>
+<h2>Thai text to speech</h2>
+<p>Use the speaker button beside any message to read it aloud. Install a Thai voice in Windows if none is available.</p>
+<p id="voice-status">Checking installed voices…</p>
+<label for="tts-rate">Speaking speed</label>
+<input id="tts-rate" type="range" min="0.5" max="2" step="0.1" value="1">
+<output id="tts-rate-value">1.0x</output>
+<div>
+<button id="tts-test">Test voice</button>
+<button id="tts-stop">Stop voice</button>
+</div>
+<p>No automatic speech or sound effects are enabled.</p>
+</section>
+<section class="module" data-views="settings" hidden>
+<h2>Local preferences</h2>
+<p>Feed size, overlay sizes and speaking speed are saved on this device automatically. Use the controls in Events, Overlay and Sound / TTS to adjust them.</p>
+<p>Dashboard styling is local. Socket.IO, existing overlays and avatar images may still need internet access.</p>
+<button data-page="events">Feed preferences</button>
+<button data-page="sound">Voice preferences</button>
+</section>
+</main>
+</div>
+<script src="gift-renderer.js"></script>
+<script src="app.js">
+</script>
+<script src="dashboard.js">
+</script>
 </body>
 </html>

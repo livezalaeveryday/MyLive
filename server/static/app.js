@@ -17,7 +17,10 @@ function readSecurityContext() {
 }
 
 const security = readSecurityContext();
-const socket = io({ auth: { token: security.token, sessionId: security.sessionId } });
+const socketAvailable = typeof window.io === 'function';
+const socket = socketAvailable
+    ? io({ autoConnect: Boolean(security.token), auth: { token: security.token, sessionId: security.sessionId } })
+    : { on() {}, emit() {}, disconnect() {} };
 const chatContainer = document.getElementById('chat-container');
 const activeStreamsList = document.getElementById('active-streams-list');
 const emptyStreams = document.getElementById('empty-streams');
@@ -66,15 +69,19 @@ document.getElementById('tts-test').addEventListener('click', () => {
 document.getElementById('tts-stop').addEventListener('click', () => { if (tts) tts.cancel(); });
 const feedContainer = document.getElementById('chat-container');
 const feedZoomValue = document.getElementById('feed-zoom-value');
+function normalizeScale(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0.5, Math.min(10, Math.round(parsed * 10) / 10)) : 1;
+}
 let feedScale = Number(localStorage.getItem('lca.feed.scale') || '1');
 function refreshFeedScale() {
-    feedScale = Math.max(0.5, Math.min(3, Math.round(feedScale * 10) / 10));
+    feedScale = normalizeScale(feedScale);
     feedContainer.style.setProperty('--feed-scale', String(feedScale));
     feedZoomValue.textContent = feedScale.toFixed(1) + 'x';
     localStorage.setItem('lca.feed.scale', String(feedScale));
 }
-document.getElementById('feed-zoom-out').addEventListener('click', () => { feedScale -= 0.5; refreshFeedScale(); });
-document.getElementById('feed-zoom-in').addEventListener('click', () => { feedScale += 0.5; refreshFeedScale(); });
+document.getElementById('feed-zoom-out').addEventListener('click', () => { feedScale -= 0.1; refreshFeedScale(); });
+document.getElementById('feed-zoom-in').addEventListener('click', () => { feedScale += 0.1; refreshFeedScale(); });
 document.getElementById('feed-zoom-reset').addEventListener('click', () => { feedScale = 1; refreshFeedScale(); });
 refreshFeedScale();
 const filterButtons = { all: document.getElementById('feed-filter-all'), gifts: document.getElementById('feed-filter-gifts') };
@@ -82,6 +89,7 @@ function setFeedFilter(filter) {
     feedFilter = filter;
     Object.entries(filterButtons).forEach(([key, button]) => {
         const active = key === filter;
+        button.setAttribute('aria-pressed', String(active));
         button.className = 'text-xs px-3 py-1.5 rounded-lg border ' + (active ? 'bg-accent/10 text-accent border-accent/20' : 'bg-white/5 text-gray-400 border-white/10');
     });
     document.querySelectorAll('#chat-container .chat-item').forEach((item) => {
@@ -141,14 +149,14 @@ overlayProfiles.forEach((profile) => {
     const link = document.getElementById(profile.link);
     profile.value = Number(localStorage.getItem('lca.overlay.scale.' + profile.key) || '1');
     const refresh = () => {
-        profile.value = Math.max(0.5, Math.min(3, Math.round(profile.value * 10) / 10));
+        profile.value = normalizeScale(profile.value);
         selector.value = profile.value.toFixed(1) + 'x';
         localStorage.setItem('lca.overlay.scale.' + profile.key, String(profile.value));
         link.href = overlayUrl(profile);
         socket.emit('overlay_scale', { overlay: profile.key, scale: profile.value, token: security.token, sessionId: security.sessionId });
     };
     document.querySelectorAll('[data-zoom="' + profile.key + '"]').forEach((button) => {
-        button.addEventListener('click', () => { profile.value += Number(button.dataset.step) * 0.5; refresh(); });
+        button.addEventListener('click', () => { profile.value += Number(button.dataset.step) * 0.1; refresh(); });
     });
     document.querySelector('[data-reset-zoom="' + profile.key + '"]').addEventListener('click', () => {
         profile.value = 1;
@@ -291,7 +299,13 @@ function safeAvatar(value, author) {
     return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(author) + '&background=random';
 }
 
-socket.on('connect_error', () => showToast('Local session authentication failed. Restart the Connector.', 'error'));
+let connectionErrorShown = false;
+socket.on('connect', () => { connectionErrorShown = false; });
+socket.on('connect_error', (error) => {
+    if (!connectionErrorShown) showToast('Local event connection unavailable. Check the app or restart it to restore access.', 'error');
+    connectionErrorShown = true;
+    if (error && error.message && /auth|unauthorized|forbidden/i.test(error.message)) socket.disconnect();
+});
 socket.on('stream_status', (stream) => {
     if (stream.state === 'disconnected') {
         streams.delete(stream.streamId);
@@ -329,11 +343,19 @@ socket.on('chat_message', (msg) => {
     const speakButton = makeElement('button', 'shrink-0 mt-0.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-gray-400 hover:border-accent/40 hover:text-white', '🔊');
     speakButton.type = 'button';
     speakButton.title = 'อ่านความคิดเห็น';
+    speakButton.setAttribute('aria-label', 'Read comment aloud');
     speakButton.addEventListener('click', (event) => { event.stopPropagation(); speakComment(msg); });
     commentRow.appendChild(speakButton);
     content.append(meta, commentRow);
     item.append(avatar, content);
     item.addEventListener('contextmenu', (event) => showContextMenu(event, msg));
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.setAttribute('aria-label', 'Highlight message from ' + String(msg.author));
+    item.addEventListener('keydown', (event) => {
+        if (event.target !== item) return;
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
+    });
     item.addEventListener('click', async () => {
         if (item.classList.contains('highlighted')) { await clearHighlight(); return; }
         document.querySelectorAll('.highlighted').forEach((element) => element.classList.remove('highlighted'));
@@ -369,6 +391,7 @@ window.addStream = addStream;
 window.clearChat = clearChat;
 window.clearHighlight = clearHighlight;
 
+if (!socketAvailable) showToast('Event library unavailable. Check internet access and reload the app.', 'error');
 if (!security.token) showToast('Missing local access token. Restart the Connector.', 'error');
 else fetchJson('/api/streams', { headers: authenticatedHeaders() })
     .then((data) => { data.streams.forEach((stream) => streams.set(stream.streamId, stream)); renderStreams(); })

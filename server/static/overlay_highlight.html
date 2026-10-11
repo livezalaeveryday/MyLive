@@ -160,9 +160,14 @@
         // Apply position
         document.body.className = `pos-${params.pos}`;
 
+        function normalizeScale(value) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? Math.max(0.5, Math.min(10, Math.round(parsed * 10) / 10)) : 1;
+        }
+
         // Apply Scale / Size
         if (params.scale) {
-            document.documentElement.style.setProperty('--ui-scale', params.scale);
+            document.documentElement.style.setProperty('--ui-scale', String(normalizeScale(params.scale)));
         } else if (params.size) {
             const sizeMap = {
                 'sm': '0.85',
@@ -174,7 +179,7 @@
                 '9:16': '1.6'
             };
             if (sizeMap[params.size]) {
-                document.documentElement.style.setProperty('--ui-scale', sizeMap[params.size]);
+                document.documentElement.style.setProperty('--ui-scale', String(normalizeScale(sizeMap[params.size])));
             }
         }
 
@@ -201,7 +206,7 @@
 
         socket.on('overlay_scale', (payload) => {
             if (payload && payload.overlay === params.overlay) {
-                document.documentElement.style.setProperty('--ui-scale', String(payload.scale));
+                document.documentElement.style.setProperty('--ui-scale', String(normalizeScale(payload.scale)));
             }
         });
 
